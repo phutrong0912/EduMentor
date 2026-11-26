@@ -56,6 +56,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
         topic = session.topic
         mode = session.mode
         language = session.language
+        difficulty = session.difficulty
+        custom_context = session.custom_context
         history: List[Dict[str, str]] = [
             {"speaker": t.speaker, "text": t.text} for t in session.transcripts
         ]
@@ -64,7 +66,9 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
 
     # Send opening question if conversation hasn't started yet
     if not history:
-        opening_text = llm_agent.get_opening_question(topic, mode, language)
+        opening_text = llm_agent.get_opening_question(
+            topic, mode, language, difficulty=difficulty, custom_context=custom_context
+        )
         await _safe_send(websocket, {"type": "ai_status", "status": "speaking"})
         audio_b64 = await tts_engine.synthesize_base64(opening_text, language)
 
@@ -210,7 +214,12 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
                 # 3. Generate AI follow-up question
                 await _safe_send(websocket, {"type": "ai_status", "status": "thinking"})
                 ai_reply = await llm_agent.generate_next_question(
-                    topic=topic, mode=mode, language=language, history=history
+                    topic=topic,
+                    mode=mode,
+                    language=language,
+                    history=history,
+                    difficulty=difficulty,
+                    custom_context=custom_context,
                 )
 
                 # 4. Synthesize AI voice

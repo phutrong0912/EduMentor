@@ -8,9 +8,11 @@ import {
   Award,
   CheckCircle2,
   Clock,
+  Download,
   Eye,
   Gauge,
   MessageSquareWarning,
+  Printer,
   RefreshCw,
   Sparkles,
   TrendingUp,
@@ -69,6 +71,52 @@ export default function DashboardReportPage() {
     } finally {
       setReEvaluating(false);
     }
+  };
+
+  const handleExportMarkdown = () => {
+    if (!report) return;
+    const { session: s, evaluation: ev, transcripts: tr } = report;
+    const lines = [
+      `# Báo cáo EduMentor AI — ${s.topic}`,
+      `- **Chế độ:** ${s.mode === "interview" ? "Phỏng vấn" : "Thuyết trình"}`,
+      `- **Ngôn ngữ:** ${s.language === "vi" ? "Tiếng Việt" : "English"}`,
+      `- **Tổng điểm:** ${Math.round(ev?.overall_score ?? s.overall_score ?? 0)}/100`,
+      `- **Eye Contact TB:** ${Math.round(s.avg_eye_contact_rate)}%`,
+      `- **Tốc độ nói TB:** ${Math.round(s.avg_wpm)} WPM`,
+      `- **Tổng từ đệm:** ${s.total_filler_words}`,
+      "",
+      "## Điểm 4 tiêu chí",
+      `- Nội dung: ${Math.round(ev?.scores.content ?? s.content_score ?? 0)}/100`,
+      `- Ngữ điệu & Tốc độ: ${Math.round(ev?.scores.tone_pace ?? s.tone_pace_score ?? 0)}/100`,
+      `- Tác phong & Biểu cảm: ${Math.round(ev?.scores.posture_expression ?? s.posture_expression_score ?? 0)}/100`,
+      `- Tương tác mắt: ${Math.round(ev?.scores.eye_contact ?? s.eye_contact_score ?? 0)}/100`,
+      "",
+      "## Nhận xét tổng quan",
+      ev?.summary || "",
+      "",
+      "## Điểm mạnh",
+      ...(ev?.strengths || []).map((x) => `- ${x}`),
+      "",
+      "## Điểm cần khắc phục",
+      ...(ev?.weaknesses || []).map((x) => `- ${x}`),
+      "",
+      "## Lộ trình cải thiện",
+      ...(ev?.actionable_feedback || []).map((x, i) => `${i + 1}. ${x}`),
+      "",
+      "## Transcript",
+      ...tr.map(
+        (t) =>
+          `- **${t.speaker === "user" ? "Ứng viên" : "AI"}** (${Math.round(t.wpm)} WPM, ${t.filler_count} từ đệm): ${t.text}`
+      ),
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `edumentor-report-${s.id.slice(0, 8)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -132,15 +180,31 @@ export default function DashboardReportPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="no-print flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportMarkdown}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+          >
+            <Download className="h-4 w-4" />
+            Xuất .MD
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+          >
+            <Printer className="h-4 w-4" />
+            In / PDF
+          </button>
           <button
             type="button"
             disabled={reEvaluating}
             onClick={handleReEvaluate}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${reEvaluating ? "animate-spin" : ""}`} />
-            Chấm điểm lại
+            Chấm lại
           </button>
           <Link
             href="/interview"

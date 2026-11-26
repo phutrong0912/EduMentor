@@ -6,6 +6,7 @@ import {
   Camera,
   CameraOff,
   Eye,
+  FileText,
   Mic,
   MicOff,
   Play,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AiInterviewerCard } from "@/components/AiInterviewerCard";
+import { AudioLevelMeter } from "@/components/AudioLevelMeter";
 import { WebcamStream } from "@/components/WebcamStream";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -23,6 +25,7 @@ import { createSession, endSession, WS_BASE_URL } from "@/lib/api";
 import type {
   AiStatus,
   CVFrameMetrics,
+  DifficultyLevel,
   InterviewMode,
   InterviewTopic,
   LanguageCode,
@@ -43,6 +46,9 @@ export default function InterviewRoomPage() {
   const [topic, setTopic] = useState<InterviewTopic>("IT Backend");
   const [mode, setMode] = useState<InterviewMode>("interview");
   const [language, setLanguage] = useState<LanguageCode>("vi");
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("medium");
+  const [customContext, setCustomContext] = useState("");
+  const [showContextBox, setShowContextBox] = useState(false);
 
   // Live session state
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -235,7 +241,19 @@ export default function InterviewRoomPage() {
     setErrorBanner(null);
     setIsStarting(true);
     try {
-      const created = await createSession({ topic, mode, language });
+      const storedUser =
+        typeof window !== "undefined"
+          ? localStorage.getItem("edumentor_user")
+          : null;
+      const userId = storedUser ? JSON.parse(storedUser)?.id : undefined;
+      const created = await createSession({
+        topic,
+        mode,
+        language,
+        difficulty,
+        custom_context: customContext.trim() || undefined,
+        user_id: userId,
+      });
       setSessionId(created.id);
       setTranscripts([]);
       setElapsedSec(0);
@@ -361,6 +379,32 @@ export default function InterviewRoomPage() {
             <option value="en">English</option>
           </select>
 
+          <select
+            value={difficulty}
+            disabled={Boolean(sessionId)}
+            onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+            className="rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none disabled:opacity-50"
+          >
+            <option value="easy">Cấp độ: Thân thiện (Fresher)</option>
+            <option value="medium">Cấp độ: Chuyên nghiệp (Mid)</option>
+            <option value="hard">Cấp độ: Phản biện gắt (Senior)</option>
+          </select>
+
+          {!sessionId && (
+            <button
+              type="button"
+              onClick={() => setShowContextBox((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                showContextBox || customContext.trim()
+                  ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-300"
+                  : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-600"
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {customContext.trim() ? "Đã nhập CV / JD" : "+ Nhập CV / JD"}
+            </button>
+          )}
+
           {sessionId && (
             <span className="flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 font-mono text-sm text-indigo-300">
               <Radio className="h-3.5 w-3.5 animate-pulse text-rose-500" />
@@ -441,6 +485,22 @@ export default function InterviewRoomPage() {
         </div>
       </div>
 
+      {/* Optional CV / JD / Presentation Outline Box */}
+      {!sessionId && showContextBox && (
+        <div className="mb-5 rounded-2xl border border-indigo-500/30 bg-slate-900/80 p-4">
+          <label className="mb-1.5 block text-xs font-semibold text-indigo-300">
+            Dán tóm tắt CV, mô tả công việc (JD) hoặc đề cương thuyết trình để AI cá nhân hóa câu hỏi:
+          </label>
+          <textarea
+            rows={3}
+            value={customContext}
+            onChange={(e) => setCustomContext(e.target.value)}
+            placeholder="Ví dụ: Sinh viên năm 4 CNTT, ứng tuyển Backend Developer (Python, FastAPI, PostgreSQL, Redis). Đã làm đồ án hệ thống gợi ý phim..."
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+      )}
+
       {/* Error / Warning Banner */}
       {(errorBanner || micError) && (
         <div className="mb-5 rounded-xl border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-sm text-rose-200">
@@ -479,7 +539,31 @@ export default function InterviewRoomPage() {
               Nhấn nút ghi âm để nói câu trả lời của bạn. Khi nói xong, nhấn Dừng để AI phân tích WPM, từ đệm và đặt câu hỏi tiếp theo.
             </p>
 
-            <div className="mt-5 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-3">
+              <AudioLevelMeter stream={stream} enabled={micEnabled} />
+
+              {wsStatus === "connected" && cvMetrics?.face_detected && (
+                <div className="grid grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 text-center text-[11px]">
+                  <div>
+                    <span className="block text-slate-500">Pitch</span>
+                    <span className="font-mono font-semibold text-slate-200">
+                      {cvMetrics.head_pose.pitch}°
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-500">Yaw</span>
+                    <span className="font-mono font-semibold text-slate-200">
+                      {cvMetrics.head_pose.yaw}°
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-500">Roll</span>
+                    <span className="font-mono font-semibold text-slate-200">
+                      {cvMetrics.head_pose.roll}°
+                    </span>
+                  </div>
+                </div>
+              )}
               {!isRecording ? (
                 <button
                   type="button"

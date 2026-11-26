@@ -41,6 +41,8 @@ class InterviewSession(Base):
     topic: Mapped[str] = mapped_column(String(100), nullable=False, default="IT Backend")
     mode: Mapped[str] = mapped_column(String(50), nullable=False, default="interview")  # interview | presentation
     language: Mapped[str] = mapped_column(String(10), nullable=False, default="vi")  # vi | en
+    difficulty: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")  # easy | medium | hard
+    custom_context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # CV / JD / Presentation outline
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")  # active | processing | completed
 
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

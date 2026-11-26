@@ -6,7 +6,22 @@ export type InterviewTopic =
 
 export type InterviewMode = "interview" | "presentation";
 export type LanguageCode = "vi" | "en";
+export type DifficultyLevel = "easy" | "medium" | "hard";
 export type AiStatus = "idle" | "listening" | "thinking" | "speaking" | "evaluating";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
 
 export interface HeadPose {
   pitch: number;
@@ -52,6 +67,8 @@ export interface SessionSummary {
   topic: string;
   mode: InterviewMode;
   language: LanguageCode;
+  difficulty?: DifficultyLevel;
+  custom_context?: string | null;
   status: string;
   started_at: string;
   ended_at: string | null;

@@ -1,8 +1,10 @@
 import type {
+  DifficultyLevel,
   InterviewMode,
   LanguageCode,
   SessionReportResponse,
   SessionSummary,
+  TokenResponse,
 } from "@/types";
 
 export const API_BASE_URL =
@@ -32,8 +34,47 @@ export async function createSession(payload: {
   topic: string;
   mode: InterviewMode;
   language: LanguageCode;
+  difficulty?: DifficultyLevel;
+  custom_context?: string;
+  user_id?: string;
 }): Promise<SessionSummary> {
   return fetchJson<SessionSummary>("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createDemoSession(): Promise<SessionSummary> {
+  return fetchJson<SessionSummary>("/api/sessions/demo", {
+    method: "POST",
+  });
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`API ${res.status}: ${res.statusText}`);
+  }
+}
+
+export async function registerUser(payload: {
+  email: string;
+  full_name: string;
+  password: string;
+}): Promise<TokenResponse> {
+  return fetchJson<TokenResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginUser(payload: {
+  email: string;
+  password: string;
+}): Promise<TokenResponse> {
+  return fetchJson<TokenResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });

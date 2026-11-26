@@ -86,7 +86,25 @@ TOPIC_QUESTIONS_EN: Dict[str, List[str]] = {
 class LLMAgent:
     """Handles conversational interviewing and 4-criteria structured evaluation."""
 
-    def get_opening_question(self, topic: str, mode: str, language: str = "vi") -> str:
+    def get_opening_question(
+        self,
+        topic: str,
+        mode: str,
+        language: str = "vi",
+        difficulty: str = "medium",
+        custom_context: str | None = None,
+    ) -> str:
+        if custom_context and custom_context.strip():
+            snippet = custom_context.strip().splitlines()[0][:100]
+            if language == "en":
+                return (
+                    f"Welcome! I reviewed your profile/context ('{snippet}...'). "
+                    f"To kick off this {difficulty}-level {topic} session, could you walk me through your most impactful achievement related to this?"
+                )
+            return (
+                f"Chào bạn! Tôi đã xem qua thông tin CV/đề cương bạn gửi ('{snippet}...'). "
+                f"Để mở đầu buổi luyện tập {topic} mức độ {difficulty}, bạn hãy giới thiệu ngắn gọn về điểm nổi bật nhất của mình nhé?"
+            )
         bank = TOPIC_QUESTIONS_VI if language == "vi" else TOPIC_QUESTIONS_EN
         questions = bank.get(topic) or bank["Thuyết trình tự do"]
         return questions[0]
@@ -97,11 +115,15 @@ class LLMAgent:
         mode: str,
         language: str,
         history: List[Dict[str, str]],
+        difficulty: str = "medium",
+        custom_context: str | None = None,
     ) -> str:
         """Generate a concise (< 3 sentences) natural follow-up question."""
         provider = settings.active_llm_provider
 
-        system_prompt = self._build_interviewer_system_prompt(topic, mode, language)
+        system_prompt = self._build_interviewer_system_prompt(
+            topic, mode, language, difficulty, custom_context
+        )
         if provider == "openai" and settings.OPENAI_API_KEY:
             reply = await self._call_openai_chat(system_prompt, history)
             if reply:
@@ -147,15 +169,35 @@ class LLMAgent:
         )
 
     @staticmethod
-    def _build_interviewer_system_prompt(topic: str, mode: str, language: str) -> str:
+    def _build_interviewer_system_prompt(
+        topic: str,
+        mode: str,
+        language: str,
+        difficulty: str = "medium",
+        custom_context: str | None = None,
+    ) -> str:
         lang_label = "Vietnamese" if language == "vi" else "English"
         role_desc = (
             "a professional HR/Technical Interviewer"
             if mode == "interview"
             else "an academic thesis defense committee member"
         )
+        difficulty_guidance = {
+            "easy": "Be encouraging and supportive, asking foundational questions suitable for an intern or fresher.",
+            "medium": "Be balanced and professional, probing practical implementation details and trade-offs.",
+            "hard": "Be rigorous and challenging like a Senior/Staff panel, asking sharp follow-up questions about edge cases, scale, and measurable impact.",
+        }.get(difficulty, "")
+
+        context_block = (
+            f" Candidate CV / Job Description / Outline provided:\n{custom_context.strip()[:1500]}\n"
+            "Tailor your questions specifically to this context."
+            if custom_context and custom_context.strip()
+            else ""
+        )
+
         return (
             f"You are {role_desc} conducting a live session on the topic '{topic}'. "
+            f"{difficulty_guidance}{context_block} "
             f"Respond strictly in {lang_label}. "
             "Acknowledge the candidate's latest answer briefly and ask ONE sharp, natural follow-up question. "
             "Keep your entire response under 3 short sentences so Text-to-Speech latency stays low. "

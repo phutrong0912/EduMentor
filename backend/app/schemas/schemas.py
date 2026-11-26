@@ -106,6 +106,8 @@ class SessionCreate(BaseModel):
     topic: str = Field(default="IT Backend", max_length=100)
     mode: str = Field(default="interview", pattern="^(interview|presentation)$")
     language: str = Field(default="vi", pattern="^(vi|en)$")
+    difficulty: str = Field(default="medium", pattern="^(easy|medium|hard)$")
+    custom_context: Optional[str] = Field(default=None, max_length=4000)
     user_id: Optional[str] = None
 
 
@@ -116,6 +118,8 @@ class SessionSummary(BaseModel):
     topic: str
     mode: str
     language: str
+    difficulty: str = "medium"
+    custom_context: Optional[str] = None
     status: str
     started_at: datetime
     ended_at: Optional[datetime] = None
