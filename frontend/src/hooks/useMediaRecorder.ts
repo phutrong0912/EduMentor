@@ -43,6 +43,7 @@ export function useMediaRecorder({
   const [micError, setMicError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const ownedStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef<number>(0);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -65,6 +66,10 @@ export function useMediaRecorder({
     if (recorder && recorder.state !== "inactive") {
       recorder.stop();
     }
+    if (ownedStreamRef.current) {
+      ownedStreamRef.current.getTracks().forEach((t) => t.stop());
+      ownedStreamRef.current = null;
+    }
     setIsRecording(false);
   }, []);
 
@@ -76,9 +81,14 @@ export function useMediaRecorder({
       chunksRef.current = [];
 
       try {
-        const audioStream = existingStream
-          ? new MediaStream(existingStream.getAudioTracks())
-          : await navigator.mediaDevices.getUserMedia({ audio: true });
+        let audioStream: MediaStream;
+        if (existingStream) {
+          audioStream = new MediaStream(existingStream.getAudioTracks());
+          ownedStreamRef.current = null;
+        } else {
+          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          ownedStreamRef.current = audioStream;
+        }
 
         if (audioStream.getAudioTracks().length === 0) {
           setMicError("Không tìm thấy micro đang hoạt động.");

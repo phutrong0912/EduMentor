@@ -27,10 +27,10 @@ export function RadarScoreChart({ scores }: RadarScoreChartProps) {
     <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="72%" data={data}>
-          <PolarGrid stroke="#334155" />
+          <PolarGrid stroke="#e2e8f0" />
           <PolarAngleAxis
             dataKey="axis"
-            tick={{ fill: "#cbd5e1", fontSize: 12, fontWeight: 500 }}
+            tick={{ fill: "#334155", fontSize: 12, fontWeight: 600 }}
           />
           <PolarRadiusAxis
             angle={30}
@@ -40,17 +40,18 @@ export function RadarScoreChart({ scores }: RadarScoreChartProps) {
           <Radar
             name="Điểm số"
             dataKey="score"
-            stroke="#818cf8"
+            stroke="#4f46e5"
             fill="#6366f1"
-            fillOpacity={0.42}
+            fillOpacity={0.28}
             strokeWidth={2.5}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              borderColor: "#334155",
+              backgroundColor: "#ffffff",
+              borderColor: "#e2e8f0",
               borderRadius: "0.75rem",
-              color: "#f8fafc",
+              color: "#0f172a",
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.08)",
             }}
             formatter={(value: number) => [`${value} / 100`, "Điểm"]}
           />

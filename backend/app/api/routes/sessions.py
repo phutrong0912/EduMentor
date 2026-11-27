@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import InterviewSession, SessionMetrics, TranscriptItem
+from app.core.security import ensure_session_access, get_optional_current_user
+from app.models.models import InterviewSession, SessionMetrics, TranscriptItem, User
 from app.schemas.schemas import SessionCreate, SessionSummary
 from app.services.report_service import finalize_session_report
 from app.services.stt_engine import analyze_speech_text
@@ -17,15 +18,18 @@ router = APIRouter(prefix="/api/sessions", tags=["Sessions"])
 
 @router.post("", response_model=SessionSummary, status_code=status.HTTP_201_CREATED)
 async def create_session(
-    payload: SessionCreate, db: AsyncSession = Depends(get_db)
+    payload: SessionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> SessionSummary:
+    # Always derive ownership from verified JWT, never trust client-supplied user_id
     session = InterviewSession(
-        user_id=payload.user_id,
-        topic=payload.topic,
+        user_id=current_user.id if current_user else None,
+        topic=payload.topic.strip(),
         mode=payload.mode,
         language=payload.language,
         difficulty=payload.difficulty,
-        custom_context=payload.custom_context,
+        custom_context=payload.custom_context.strip() if payload.custom_context else None,
         status="active",
     )
     db.add(session)
@@ -35,10 +39,19 @@ async def create_session(
 
 
 @router.post("/demo", response_model=SessionSummary, status_code=status.HTTP_201_CREATED)
-async def create_demo_session(db: AsyncSession = Depends(get_db)) -> SessionSummary:
-    """Seed a realistic completed interview session for instant dashboard demonstration."""
+async def create_demo_session(
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+) -> SessionSummary:
+    """Seed a sample completed interview session (development/DEBUG mode only)."""
+    if not settings.DEBUG:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tính năng tạo dữ liệu mẫu chỉ khả dụng trong môi trường phát triển.",
+        )
     now = datetime.now(timezone.utc)
     session = InterviewSession(
+        user_id=current_user.id if current_user else None,
         topic="IT Backend",
         mode="interview",
         language="vi",
@@ -143,12 +156,19 @@ async def create_demo_session(db: AsyncSession = Depends(get_db)) -> SessionSumm
 
 @router.get("", response_model=List[SessionSummary])
 async def list_sessions(
-    limit: int = 20, db: AsyncSession = Depends(get_db)
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> List[SessionSummary]:
+    query = select(InterviewSession)
+    if current_user is not None:
+        query = query.where(InterviewSession.user_id == current_user.id)
+    else:
+        # Guests only see anonymous sessions; never leak registered users' sessions
+        query = query.where(InterviewSession.user_id.is_(None))
+
     result = await db.execute(
-        select(InterviewSession)
-        .order_by(desc(InterviewSession.started_at))
-        .limit(min(limit, 100))
+        query.order_by(desc(InterviewSession.started_at)).limit(min(limit, 100))
     )
     sessions = result.scalars().all()
     return [SessionSummary.model_validate(s) for s in sessions]
@@ -156,7 +176,9 @@ async def list_sessions(
 
 @router.get("/{session_id}", response_model=SessionSummary)
 async def get_session(
-    session_id: str, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> SessionSummary:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
@@ -164,12 +186,15 @@ async def get_session(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên phỏng vấn.")
+    ensure_session_access(session, current_user)
     return SessionSummary.model_validate(session)
 
 
 @router.post("/{session_id}/end", response_model=SessionSummary)
 async def end_session(
-    session_id: str, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> SessionSummary:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
@@ -177,6 +202,7 @@ async def end_session(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên phỏng vấn.")
+    ensure_session_access(session, current_user)
 
     if settings.USE_CELERY:
         from app.core.celery_app import generate_session_report_task
@@ -193,7 +219,9 @@ async def end_session(
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(
-    session_id: str, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> None:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
@@ -201,5 +229,6 @@ async def delete_session(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên phỏng vấn.")
+    ensure_session_access(session, current_user)
     await db.delete(session)
     await db.commit()

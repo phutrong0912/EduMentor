@@ -57,25 +57,25 @@ export function AudioLevelMeter({ stream, enabled }: AudioLevelMeterProps) {
   }, [stream, enabled]);
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
       {enabled ? (
-        <Volume2 className="h-4 w-4 shrink-0 text-emerald-400" />
+        <Volume2 className="h-4 w-4 shrink-0 text-emerald-600" />
       ) : (
-        <VolumeX className="h-4 w-4 shrink-0 text-rose-400" />
+        <VolumeX className="h-4 w-4 shrink-0 text-rose-500" />
       )}
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
         <div
           className={`h-full rounded-full transition-all duration-75 ${
             level > 70
-              ? "bg-amber-400"
+              ? "bg-amber-500"
               : level > 15
-              ? "bg-emerald-400"
-              : "bg-slate-600"
+              ? "bg-emerald-500"
+              : "bg-slate-400"
           }`}
           style={{ width: `${enabled ? Math.max(4, level) : 0}%` }}
         />
       </div>
-      <span className="w-16 text-right text-[11px] font-medium text-slate-400">
+      <span className="w-16 text-right text-[11px] font-medium text-slate-600">
         {enabled ? (level > 10 ? "Đang thu" : "Im lặng") : "Tắt Mic"}
       </span>
     </div>

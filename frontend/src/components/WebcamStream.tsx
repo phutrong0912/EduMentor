@@ -66,7 +66,7 @@ export function WebcamStream({
   const box = metrics?.landmarks_box;
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-md">
       <video
         ref={videoRef}
         muted
@@ -79,9 +79,9 @@ export function WebcamStream({
 
       {/* Camera off placeholder */}
       {(!cameraEnabled || !stream) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
-            <CameraOff className="h-8 w-8 text-slate-500" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-500">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
+            <CameraOff className="h-8 w-8 text-slate-400" />
           </div>
           <p className="text-sm font-medium">
             {cameraEnabled
@@ -96,8 +96,8 @@ export function WebcamStream({
         <div
           className={`pointer-events-none absolute rounded-xl border-2 transition-all duration-150 ${
             metrics.eye_contact
-              ? "border-emerald-400/80 shadow-[0_0_20px_rgba(52,211,153,0.25)]"
-              : "border-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.25)]"
+              ? "border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+              : "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
           }`}
           style={{
             left: `${(1 - box.x - box.width) * 100}%`,
@@ -106,7 +106,7 @@ export function WebcamStream({
             height: `${box.height * 100}%`,
           }}
         >
-          <span className="absolute -top-6 left-0 rounded bg-slate-950/85 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+          <span className="absolute -top-6 left-0 rounded bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-sm">
             {metrics.expression === "confident_smile"
               ? "Tự tin"
               : metrics.expression === "speaking"
@@ -120,10 +120,10 @@ export function WebcamStream({
 
       {/* Top HUD Badges */}
       <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 rounded-full bg-slate-950/75 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur">
+        <span className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur">
           <span
             className={`h-2 w-2 rounded-full ${
-              isActive ? "animate-pulse bg-rose-500" : "bg-slate-500"
+              isActive ? "animate-pulse bg-rose-500" : "bg-slate-400"
             }`}
           />
           {isActive ? "LIVE CV 5 FPS" : "Sẵn sàng"}
@@ -132,18 +132,18 @@ export function WebcamStream({
         {isActive && metrics && (
           <>
             <span
-              className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
+              className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur ${
                 metrics.eye_contact
-                  ? "bg-emerald-500/20 text-emerald-300"
-                  : "bg-amber-500/20 text-amber-300"
+                  ? "bg-emerald-50/95 text-emerald-700"
+                  : "bg-amber-50/95 text-amber-700"
               }`}
             >
               <Eye className="h-3.5 w-3.5" />
               Eye Contact: {Math.round(metrics.eye_contact_score)}%
             </span>
 
-            <span className="flex items-center gap-1 rounded-full bg-slate-950/75 px-3 py-1 text-xs font-medium text-slate-300 backdrop-blur">
-              <ScanFace className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur">
+              <ScanFace className="h-3.5 w-3.5 text-indigo-600" />
               Tư thế: {Math.round(metrics.head_stability)}%
             </span>
           </>
@@ -152,8 +152,8 @@ export function WebcamStream({
 
       {/* Real-time non-intrusive warning toast */}
       {isActive && metrics?.alert && (
-        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-950/85 px-3.5 py-2 text-xs font-medium text-amber-200 backdrop-blur">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50/95 px-3.5 py-2 text-xs font-medium text-amber-900 shadow-sm backdrop-blur">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
           <span>{metrics.alert}</span>
         </div>
       )}

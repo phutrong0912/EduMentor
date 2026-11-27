@@ -364,49 +364,149 @@ class LLMAgent:
         avg_wpm = float(speech_summary.get("avg_wpm", 0.0))
         total_fillers = int(speech_summary.get("total_filler_words", 0))
 
-        eye_rate = float(cv_summary.get("avg_eye_contact_rate", 72.0))
-        head_stability = float(cv_summary.get("avg_head_stability", 78.0))
-        confidence = float(cv_summary.get("avg_confidence", 75.0))
+        # Collect actual filler words used in this session
+        detected_fillers: List[str] = []
+        for turn in user_turns:
+            for fw in turn.get("filler_words") or []:
+                if fw not in detected_fillers:
+                    detected_fillers.append(str(fw))
 
-        # 1. Eye Contact Score
-        eye_score = round(min(100.0, max(20.0, eye_rate)), 1)
+        camera_used = bool(cv_summary.get("camera_used", cv_summary.get("face_detected_frames", 0) > 0))
+        eye_rate = float(cv_summary.get("avg_eye_contact_rate", 0.0)) if camera_used else 0.0
+        head_stability = float(cv_summary.get("avg_head_stability", 0.0)) if camera_used else 0.0
+        confidence = float(cv_summary.get("avg_confidence", 0.0)) if camera_used else 0.0
 
-        # 2. Posture & Expression Score
-        posture_score = round(min(100.0, max(25.0, 0.55 * head_stability + 0.45 * confidence)), 1)
+        # 1. Eye Contact Score (honest 0 if camera was not used)
+        eye_score = round(min(100.0, max(0.0, eye_rate)), 1) if camera_used else 0.0
 
-        # 3. Tone & Pace Score (benchmark 120-150 WPM, penalize filler ratio)
-        if avg_wpm <= 0:
-            pace_score = 65.0
-        elif 120.0 <= avg_wpm <= 150.0:
-            pace_score = 92.0
-        else:
-            dist = min(abs(avg_wpm - 120.0), abs(avg_wpm - 150.0))
-            pace_score = max(40.0, 90.0 - dist * 0.7)
-
-        filler_ratio = (total_fillers / max(total_words, 1)) * 100.0
-        tone_pace_score = round(max(30.0, min(100.0, pace_score - filler_ratio * 2.5)), 1)
-
-        # 4. Content Score (depth & completeness heuristic)
-        if total_words == 0:
-            content_score = 50.0
-        elif total_words < 40:
-            content_score = 64.0
-        elif total_words < 120:
-            content_score = 78.0
-        else:
-            content_score = 86.0
-
-        overall = round(
-            0.35 * content_score
-            + 0.25 * tone_pace_score
-            + 0.20 * posture_score
-            + 0.20 * eye_score,
-            1,
+        # 2. Posture & Expression Score (honest 0 if camera was not used)
+        posture_score = (
+            round(min(100.0, max(0.0, 0.55 * head_stability + 0.45 * confidence)), 1)
+            if camera_used
+            else 0.0
         )
 
-        sample_excerpt = user_turns[0]["text"][:140] if user_turns else "Em có làm một số dự án liên quan đến chủ đề này."
+        # 3. Tone & Pace Score (benchmark 120-150 WPM, penalize filler ratio)
+        if total_words == 0 or avg_wpm <= 0:
+            tone_pace_score = 0.0
+        else:
+            if 120.0 <= avg_wpm <= 150.0:
+                pace_score = 92.0
+            else:
+                dist = min(abs(avg_wpm - 120.0), abs(avg_wpm - 150.0))
+                pace_score = max(40.0, 90.0 - dist * 0.7)
+            filler_ratio = (total_fillers / max(total_words, 1)) * 100.0
+            tone_pace_score = round(max(25.0, min(100.0, pace_score - filler_ratio * 2.5)), 1)
+
+        # 4. Content Score (depth & completeness heuristic based on actual turns/words)
+        if total_words == 0:
+            content_score = 0.0
+        elif total_words < 25:
+            content_score = 52.0
+        elif total_words < 60:
+            content_score = 68.0
+        elif total_words < 140:
+            content_score = 80.0
+        else:
+            content_score = 88.0
+
+        # Overall score weighted over actually measured dimensions
+        if camera_used and total_words > 0:
+            overall = round(
+                0.35 * content_score
+                + 0.25 * tone_pace_score
+                + 0.20 * posture_score
+                + 0.20 * eye_score,
+                1,
+            )
+        elif total_words > 0:
+            overall = round(0.58 * content_score + 0.42 * tone_pace_score, 1)
+        elif camera_used:
+            overall = round(0.50 * posture_score + 0.50 * eye_score, 1)
+        else:
+            overall = 0.0
+
+        topic_star_vi = {
+            "IT Backend": "Trong dự án gần nhất, em chịu trách nhiệm tối ưu API và truy vấn cơ sở dữ liệu (Action), giúp giảm 35% thời gian phản hồi dưới tải thực tế (Result).",
+            "IT Frontend": "Trong dự án web gần đây, em tái cấu trúc state và tối ưu render danh sách lớn (Action), giúp cải thiện điểm hiệu năng tải trang lên trên 90 (Result).",
+            "Kinh tế": "Trong dự án phân tích thị trường, em xây dựng bộ chỉ số theo dõi chuyển đổi theo từng phân khúc (Action), giúp đội ngũ đề xuất phương án tăng hiệu quả chiến dịch thêm 18% (Result).",
+        }
+        topic_star_en = {
+            "IT Backend": "In my recent project, I redesigned the core API and database indexing (Action), cutting p95 latency by 35% under production load (Result).",
+            "IT Frontend": "In my recent web app, I refactored state updates and virtualized large lists (Action), lifting Core Web Vitals performance above 90 (Result).",
+            "Kinh tế": "In my market analysis project, I segmented conversion funnels with clear KPIs (Action), helping the team improve campaign efficiency by 18% (Result).",
+        }
+
+        sample_improvements: List[SampleImprovement] = []
+        if user_turns:
+            shortest_or_first = user_turns[0]["text"][:160]
+            if language == "en":
+                sample_improvements.append(
+                    SampleImprovement(
+                        original_excerpt=shortest_or_first,
+                        improved_suggestion=topic_star_en.get(
+                            topic,
+                            "Clearly state the context (Situation), your specific responsibility (Task), concrete steps taken (Action), and a measurable outcome (Result).",
+                        ),
+                        reason="Applies the STAR structure with concrete ownership and measurable impact.",
+                    )
+                )
+            else:
+                sample_improvements.append(
+                    SampleImprovement(
+                        original_excerpt=shortest_or_first,
+                        improved_suggestion=topic_star_vi.get(
+                            topic,
+                            "Trình bày rõ bối cảnh (Situation), vai trò trực tiếp của bạn (Task), các bước hành động cụ thể (Action) và kết quả có số liệu minh chứng (Result).",
+                        ),
+                        reason="Áp dụng cấu trúc STAR kèm vai trò cụ thể và số liệu giúp câu trả lời thuyết phục hơn.",
+                    )
+                )
 
         if language == "en":
+            strengths: List[str] = []
+            weaknesses: List[str] = []
+            actions: List[str] = []
+
+            if camera_used:
+                if head_stability >= 70:
+                    strengths.append(f"Maintained steady head posture ({head_stability:.0f}% stability).")
+                else:
+                    weaknesses.append(f"Head posture stability was low ({head_stability:.0f}%); try sitting centered and steady.")
+                if eye_rate >= 70:
+                    strengths.append(f"Strong camera eye contact ({eye_rate:.0f}%).")
+                else:
+                    weaknesses.append(f"Eye contact rate was {eye_rate:.0f}% (target >= 70%).")
+            else:
+                weaknesses.append("Camera was disabled or no face was detected, so eye contact and posture could not be scored.")
+                actions.append("Enable your webcam in a well-lit area to receive real-time Eye Contact and Head Pose feedback.")
+
+            if total_words > 0:
+                if 120 <= avg_wpm <= 150:
+                    strengths.append(f"Speaking pace ({avg_wpm:.0f} WPM) is right inside the ideal 120–150 WPM range.")
+                elif avg_wpm > 150:
+                    weaknesses.append(f"Speaking pace was fast ({avg_wpm:.0f} WPM); slow down slightly for clarity.")
+                else:
+                    weaknesses.append(f"Speaking pace was slow ({avg_wpm:.0f} WPM); practice smoother phrasing.")
+
+                if total_fillers == 0:
+                    strengths.append("Zero filler words detected across your responses.")
+                else:
+                    filler_preview = ", ".join(f"'{w}'" for w in detected_fillers[:3])
+                    weaknesses.append(f"Detected {total_fillers} filler word(s) ({filler_preview}).")
+                    actions.append("Pause silently for 1 second instead of using filler words when thinking.")
+            else:
+                weaknesses.append("No spoken or typed answers were recorded during this session.")
+
+            if not strengths:
+                strengths.append("Completed the practice session setup and flow.")
+            actions.append("Structure experience answers with STAR (Situation, Task, Action, Result) and concrete numbers.")
+
+            cam_summary = (
+                f"eye contact reached {eye_rate:.0f}%."
+                if camera_used
+                else "camera was off so visual metrics were not measured."
+            )
             return EvaluationReport(
                 overall_score=overall,
                 scores=CriteriaScores(
@@ -417,32 +517,75 @@ class LLMAgent:
                 ),
                 summary=(
                     f"You completed the {topic} session with an overall score of {overall}/100. "
-                    f"Your average speaking pace was {avg_wpm:.0f} WPM with {total_fillers} filler words, "
-                    f"and your eye contact rate reached {eye_rate:.0f}%."
+                    f"Recorded {len(user_turns)} answer(s) ({total_words} words, {avg_wpm:.0f} WPM, {total_fillers} filler words); "
+                    f"{cam_summary}"
                 ),
-                strengths=[
-                    f"Maintained {head_stability:.0f}% head posture stability during the session.",
-                    "Clear willingness to engage with follow-up questions.",
-                    f"Eye contact score of {eye_score:.0f}/100 shows good camera awareness.",
-                ],
-                weaknesses=[
-                    f"Detected {total_fillers} filler words; reducing them will sharpen delivery.",
-                    "Answers can include more concrete metrics and STAR structure.",
-                ],
-                actionable_feedback=[
-                    "Use the STAR framework (Situation, Task, Action, Result) with measurable outcomes.",
-                    "Aim for a steady 120–150 WPM pace and pause silently instead of using filler words.",
-                    "Keep your gaze centered near the webcam lens when emphasizing key points.",
-                ],
-                sample_improvements=[
-                    SampleImprovement(
-                        original_excerpt=sample_excerpt,
-                        improved_suggestion="In my recent project, I redesigned the core API layer (Action), reducing p95 latency by 40% for 5,000 daily users (Result).",
-                        reason="Adds concrete context, action, and quantifiable impact.",
-                    )
-                ],
+                strengths=strengths,
+                weaknesses=weaknesses,
+                actionable_feedback=actions,
+                sample_improvements=sample_improvements,
             )
 
+        # Vietnamese feedback
+        strengths_vi: List[str] = []
+        weaknesses_vi: List[str] = []
+        actions_vi: List[str] = []
+
+        if camera_used:
+            if head_stability >= 70:
+                strengths_vi.append(
+                    f"Tư thế đầu ổn định ({head_stability:.0f}%), tạo tác phong chuyên nghiệp trước ống kính."
+                )
+            else:
+                weaknesses_vi.append(
+                    f"Độ ổn định tư thế đầu mới đạt {head_stability:.0f}% — nên giữ khung hình ổn định và hướng thẳng camera."
+                )
+            if eye_rate >= 70:
+                strengths_vi.append(
+                    f"Tỷ lệ giao tiếp mắt đạt {eye_rate:.0f}% (vượt ngưỡng chuẩn 70%)."
+                )
+            else:
+                weaknesses_vi.append(
+                    f"Tỷ lệ giao tiếp mắt đạt {eye_rate:.0f}%, thấp hơn ngưỡng khuyến nghị 70%."
+                )
+                actions_vi.append("Giữ ánh mắt hướng vào ống kính camera khi nhấn mạnh các luận điểm quan trọng.")
+        else:
+            weaknesses_vi.append("Camera chưa bật hoặc chưa nhận diện được khuôn mặt nên chưa thể chấm điểm ánh mắt và tác phong.")
+            actions_vi.append("Bật webcam ở nơi đủ sáng để hệ thống phân tích Eye Contact và tư thế đầu chính xác.")
+
+        if total_words > 0:
+            if 120 <= avg_wpm <= 150:
+                strengths_vi.append(f"Tốc độ nói trung bình {avg_wpm:.0f} WPM nằm trong ngưỡng lý tưởng (120–150 WPM).")
+            elif avg_wpm > 150:
+                weaknesses_vi.append(f"Tốc độ nói hơi nhanh ({avg_wpm:.0f} WPM), cần nhấn nhá và ngắt nhịp rõ hơn.")
+                actions_vi.append("Chậm lại nhẹ về ngưỡng 120–150 WPM và nghỉ ngắn giữa các ý chính.")
+            else:
+                weaknesses_vi.append(f"Tốc độ nói hơi chậm ({avg_wpm:.0f} WPM), có thể luyện trình bày trôi chảy hơn.")
+                actions_vi.append("Luyện tập dàn ý trước khi nói để duy trì nhịp nói ổn định 120–150 WPM.")
+
+            if total_fillers == 0:
+                strengths_vi.append("Không phát hiện từ đệm trong toàn bộ câu trả lời — diễn đạt rất gọn gàng.")
+            else:
+                filler_preview = ", ".join(f"'{w}'" for w in detected_fillers[:3])
+                weaknesses_vi.append(f"Phát hiện {total_fillers} từ đệm ({filler_preview}) làm giảm độ tự tin khi trình bày.")
+                actions_vi.append("Tập ngắt nghỉ im lặng 1 giây khi suy nghĩ thay vì chèn các từ đệm.")
+
+            if total_words >= 60:
+                strengths_vi.append(f"Nội dung trả lời có độ sâu ({total_words} từ qua {len(user_turns)} lượt trả lời).")
+            else:
+                weaknesses_vi.append("Câu trả lời còn khá ngắn, nên mở rộng thêm bối cảnh và ví dụ thực tế.")
+        else:
+            weaknesses_vi.append("Chưa ghi nhận câu trả lời nào trong phiên này.")
+
+        if not strengths_vi:
+            strengths_vi.append("Đã hoàn tất thiết lập và quy trình phiên luyện tập.")
+        actions_vi.append("Áp dụng cấu trúc STAR (Tình huống - Nhiệm vụ - Hành động - Kết quả) kèm số liệu định lượng.")
+
+        cam_summary_vi = (
+            f"tỷ lệ giao tiếp mắt đạt {eye_rate:.0f}%."
+            if camera_used
+            else "camera không hoạt động nên chỉ số hình ảnh chưa được ghi nhận."
+        )
         return EvaluationReport(
             overall_score=overall,
             scores=CriteriaScores(
@@ -453,33 +596,13 @@ class LLMAgent:
             ),
             summary=(
                 f"Bạn đã hoàn thành phiên luyện tập chủ đề {topic} với tổng điểm {overall}/100. "
-                f"Tốc độ nói trung bình đạt {avg_wpm:.0f} từ/phút với {total_fillers} từ đệm, "
-                f"tỷ lệ giao tiếp mắt đạt {eye_rate:.0f}%."
+                f"Hệ thống ghi nhận {len(user_turns)} lượt trả lời ({total_words} từ, {avg_wpm:.0f} WPM, {total_fillers} từ đệm); "
+                f"{cam_summary_vi}"
             ),
-            strengths=[
-                f"Độ ổn định tư thế đầu đạt {head_stability:.0f}%, tạo cảm giác chuyên nghiệp trước ống kính.",
-                f"Tỷ lệ giao tiếp mắt đạt {eye_rate:.0f}% giúp duy trì sự kết nối với người phỏng vấn.",
-                "Phản hồi mạch lạc và bám sát chủ đề buổi luyện tập.",
-            ],
-            weaknesses=[
-                f"Phát hiện {total_fillers} từ đệm (như 'à', 'ừm', 'kiểu như') làm giảm độ tự tin khi trình bày.",
-                "Một số câu trả lời nên bổ sung số liệu cụ thể và cấu trúc STAR rõ ràng hơn.",
-            ],
-            actionable_feedback=[
-                "Áp dụng cấu trúc STAR (Tình huống - Nhiệm vụ - Hành động - Kết quả) kèm số liệu định lượng cho câu hỏi kinh nghiệm.",
-                "Duy trì tốc độ nói trong ngưỡng chuẩn 120–150 WPM và tập ngắt nghỉ 1 giây thay vì dùng từ đệm.",
-                "Giữ ánh mắt tập trung vào ống kính camera khi nhấn mạnh các luận điểm chính.",
-            ],
-            sample_improvements=[
-                SampleImprovement(
-                    original_excerpt=sample_excerpt,
-                    improved_suggestion=(
-                        "Trong dự án gần nhất, em phụ trách thiết kế API và tối ưu truy vấn SQL (Hành động), "
-                        "giúp giảm thời gian phản hồi trung bình 40% khi phục vụ 5.000 người dùng mỗi ngày (Kết quả)."
-                    ),
-                    reason="Bổ sung vai trò cụ thể và kết quả định lượng giúp câu trả lời thuyết phục hơn nhiều.",
-                )
-            ],
+            strengths=strengths_vi,
+            weaknesses=weaknesses_vi,
+            actionable_feedback=actions_vi,
+            sample_improvements=sample_improvements,
         )
 
 

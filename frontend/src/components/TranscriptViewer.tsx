@@ -36,7 +36,7 @@ function renderHighlightedText(text: string, fillers: string[] | null) {
       return (
         <mark
           key={idx}
-          className="mx-0.5 rounded bg-rose-500/25 px-1.5 py-0.5 font-semibold text-rose-300 ring-1 ring-rose-500/40"
+          className="mx-0.5 rounded bg-rose-100 px-1.5 py-0.5 font-semibold text-rose-800 ring-1 ring-rose-300"
           title="Từ đệm (Filler word)"
         >
           {part}
@@ -56,7 +56,7 @@ function formatTime(sec: number): string {
 export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
   if (!transcripts.length) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-8 text-center text-sm text-slate-400">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
         Chưa có nội dung hội thoại nào được ghi nhận trong phiên này.
       </div>
     );
@@ -65,13 +65,13 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
   return (
     <div className="space-y-4">
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-rose-500/40 ring-1 ring-rose-500/60" />
+          <span className="inline-block h-3 w-3 rounded bg-rose-100 ring-1 ring-rose-300" />
           Highlight đỏ: Từ đệm (Filler words)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-amber-500/30 ring-1 ring-amber-500/60" />
+          <span className="inline-block h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-400" />
           Viền vàng: Tốc độ nói quá nhanh (&gt;160 WPM) hoặc quá chậm (&lt;110 WPM)
         </span>
       </div>
@@ -87,9 +87,9 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
               className={`rounded-xl border p-4 transition ${
                 isUser
                   ? paceWarning
-                    ? "border-amber-500/50 bg-amber-500/5"
-                    : "border-slate-800 bg-slate-900/80"
-                  : "border-indigo-500/25 bg-indigo-950/25"
+                    ? "border-amber-300 bg-amber-50/60"
+                    : "border-slate-200 bg-slate-50/70"
+                  : "border-indigo-200/80 bg-indigo-50/50"
               }`}
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -97,8 +97,8 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
                   <div
                     className={`flex h-7 w-7 items-center justify-center rounded-lg ${
                       isUser
-                        ? "bg-slate-800 text-slate-200"
-                        : "bg-indigo-600/30 text-indigo-300"
+                        ? "bg-slate-200 text-slate-700"
+                        : "bg-indigo-100 text-indigo-700"
                     }`}
                   >
                     {isUser ? (
@@ -107,7 +107,7 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
                       <Bot className="h-4 w-4" />
                     )}
                   </div>
-                  <span className="text-sm font-semibold text-white">
+                  <span className="text-sm font-semibold text-slate-900">
                     {isUser ? "Bạn (Ứng viên)" : "AI Interviewer"}
                   </span>
                   <span className="text-xs text-slate-500">
@@ -120,8 +120,8 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         item.pace_status === "normal"
-                          ? "bg-emerald-500/15 text-emerald-300"
-                          : "bg-amber-500/20 text-amber-300"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-800"
                       }`}
                     >
                       <Gauge className="h-3 w-3" />
@@ -134,7 +134,7 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
                     </span>
 
                     {item.filler_count > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2.5 py-0.5 text-xs font-medium text-rose-300">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700">
                         <AlertCircle className="h-3 w-3" />
                         {item.filler_count} từ đệm
                       </span>
@@ -143,7 +143,7 @@ export function TranscriptViewer({ transcripts }: TranscriptViewerProps) {
                 )}
               </div>
 
-              <p className="text-sm leading-relaxed text-slate-200">
+              <p className="text-sm leading-relaxed text-slate-700">
                 {isUser
                   ? renderHighlightedText(item.text, item.filler_words)
                   : item.text}

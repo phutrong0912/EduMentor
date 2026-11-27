@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
+      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
         <Navbar />
         <main>{children}</main>
       </body>

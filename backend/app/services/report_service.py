@@ -89,9 +89,10 @@ async def finalize_session_report(session_id: str) -> dict:
         transcripts = list(session.transcripts)
         user_transcripts = [t for t in transcripts if t.speaker == "user"]
 
-        # Aggregate CV metrics
+        # Aggregate CV metrics (never fabricate scores when no camera frames were captured)
         valid_metrics = [m for m in metrics if m.face_detected]
-        if valid_metrics:
+        camera_used = len(valid_metrics) > 0
+        if camera_used:
             avg_eye_contact = (
                 sum(100.0 if m.eye_contact else 0.0 for m in valid_metrics)
                 / len(valid_metrics)
@@ -103,9 +104,9 @@ async def finalize_session_report(session_id: str) -> dict:
                 sum(m.confidence_score for m in valid_metrics) / len(valid_metrics)
             )
         else:
-            avg_eye_contact = 70.0
-            avg_head_stability = 75.0
-            avg_confidence = 72.0
+            avg_eye_contact = 0.0
+            avg_head_stability = 0.0
+            avg_confidence = 0.0
 
         # Aggregate Speech metrics
         total_words = sum(t.word_count for t in user_transcripts)
@@ -118,6 +119,7 @@ async def finalize_session_report(session_id: str) -> dict:
         total_fillers = sum(t.filler_count for t in user_transcripts)
 
         cv_summary = {
+            "camera_used": camera_used,
             "frames_analyzed": len(metrics),
             "face_detected_frames": len(valid_metrics),
             "avg_eye_contact_rate": round(avg_eye_contact, 1),

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Area,
   AreaChart,
@@ -15,36 +14,46 @@ import {
 import {
   BarChart3,
   Clock,
-  Sparkles,
   Trash2,
   TrendingUp,
   ArrowUpRight,
 } from "lucide-react";
-import { createDemoSession, deleteSession, listSessions } from "@/lib/api";
+import { deleteSession, listSessions } from "@/lib/api";
 import type { SessionSummary } from "@/types";
 
 export default function HistoryPage() {
-  const router = useRouter();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [topicFilter, setTopicFilter] = useState<string>("ALL");
-  const [creatingDemo, setCreatingDemo] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     setLoading(true);
+    setErrorBanner(null);
     try {
       const data = await listSessions(50);
       setSessions(data);
-    } catch {
+    } catch (err) {
       setSessions([]);
+      setErrorBanner(
+        err instanceof Error
+          ? err.message
+          : "Không thể tải danh sách phiên luyện tập."
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadSessions();
-  }, []);
+    const onAuthChange = () => {
+      loadSessions();
+    };
+    window.addEventListener("edumentor-auth-change", onAuthChange);
+    return () => window.removeEventListener("edumentor-auth-change", onAuthChange);
+  }, [loadSessions]);
 
   const filtered = useMemo(() => {
     if (topicFilter === "ALL") return sessions;
@@ -63,22 +72,25 @@ export default function HistoryPage() {
       }));
   }, [filtered]);
 
-  const handleCreateDemo = async () => {
-    setCreatingDemo(true);
-    try {
-      const demo = await createDemoSession();
-      router.push(`/dashboard/${demo.id}`);
-    } catch {
-      setCreatingDemo(false);
-    }
-  };
+  const handleDelete = async (session: SessionSummary) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn xóa phiên "${session.topic}" (${new Date(
+        session.started_at
+      ).toLocaleString("vi-VN")})? Hành động này không thể hoàn tác.`
+    );
+    if (!confirmed) return;
 
-  const handleDelete = async (id: string) => {
+    setDeletingId(session.id);
+    setErrorBanner(null);
     try {
-      await deleteSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-    } catch {
-      // ignore
+      await deleteSession(session.id);
+      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+    } catch (err) {
+      setErrorBanner(
+        err instanceof Error ? err.message : "Không thể xóa phiên này."
+      );
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -86,40 +98,36 @@ export default function HistoryPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
             Lịch sử & Tiến độ luyện tập
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Theo dõi sự cải thiện điểm số, Eye Contact và tốc độ nói qua từng buổi luyện tập
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={creatingDemo}
-            onClick={handleCreateDemo}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/40 bg-indigo-500/15 px-4 py-2.5 text-sm font-medium text-indigo-200 transition hover:bg-indigo-500/25 disabled:opacity-50"
-          >
-            <Sparkles className="h-4 w-4" />
-            {creatingDemo ? "Đang tạo báo cáo mẫu..." : "Tạo báo cáo Demo mẫu"}
-          </button>
-
           <Link
             href="/interview"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
           >
-            + Phiên mới
+            + Bắt đầu phiên mới
           </Link>
         </div>
       </div>
 
+      {errorBanner && (
+        <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {errorBanner}
+        </div>
+      )}
+
       {/* Multi-session Progress Trend Chart */}
-      <div className="mb-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-lg font-semibold text-white">
+            <TrendingUp className="h-5 w-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold text-slate-900">
               Biểu đồ xu hướng tiến bộ
             </h2>
           </div>
@@ -127,7 +135,7 @@ export default function HistoryPage() {
           <select
             value={topicFilter}
             onChange={(e) => setTopicFilter(e.target.value)}
-            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+            className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-none"
           >
             <option value="ALL">Tất cả chủ đề</option>
             <option value="IT Backend">IT Backend</option>
@@ -138,9 +146,17 @@ export default function HistoryPage() {
         </div>
 
         {trendData.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center text-sm text-slate-400">
-            <BarChart3 className="mb-2 h-8 w-8 text-slate-600" />
-            Chưa có đủ dữ liệu để vẽ biểu đồ xu hướng. Bạn có thể nhấn &ldquo;Tạo báo cáo Demo mẫu&rdquo; để xem ngay!
+          <div className="flex h-60 flex-col items-center justify-center gap-3 text-center text-sm text-slate-500">
+            <BarChart3 className="h-8 w-8 text-slate-400" />
+            <p>
+              Chưa có dữ liệu tiến bộ. Hãy hoàn thành ít nhất một phiên luyện tập để theo dõi biểu đồ xu hướng của bạn.
+            </p>
+            <Link
+              href="/interview"
+              className="rounded-lg bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            >
+              Vào phòng luyện tập ngay
+            </Link>
           </div>
         ) : (
           <div className="h-72 w-full">
@@ -148,30 +164,31 @@ export default function HistoryPage() {
               <AreaChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.45} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.28} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="eyeGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.22} />
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" tick={{ fill: "#64748b", fontSize: 12 }} />
+                <YAxis domain={[0, 100]} stroke="#64748b" tick={{ fill: "#64748b", fontSize: 11 }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#0f172a",
-                    borderColor: "#334155",
+                    backgroundColor: "#ffffff",
+                    borderColor: "#e2e8f0",
                     borderRadius: "0.75rem",
-                    color: "#f8fafc",
+                    color: "#0f172a",
+                    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.08)",
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="overall"
                   name="Tổng điểm AI"
-                  stroke="#818cf8"
+                  stroke="#4f46e5"
                   strokeWidth={2.5}
                   fill="url(#scoreGrad)"
                 />
@@ -179,7 +196,7 @@ export default function HistoryPage() {
                   type="monotone"
                   dataKey="eyeContact"
                   name="Eye Contact (%)"
-                  stroke="#34d399"
+                  stroke="#059669"
                   strokeWidth={2}
                   fill="url(#eyeGrad)"
                 />
@@ -190,17 +207,17 @@ export default function HistoryPage() {
       </div>
 
       {/* Sessions Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="p-8 text-center text-sm text-slate-400">Đang tải danh sách phiên...</div>
+          <div className="p-8 text-center text-sm text-slate-500">Đang tải danh sách phiên...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-400">
+          <div className="p-10 text-center text-sm text-slate-500">
             Chưa có phiên luyện tập nào phù hợp bộ lọc.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-800 bg-slate-950/60 text-xs uppercase text-slate-400">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-5 py-3.5">Chủ đề & Chế độ</th>
                   <th className="px-5 py-3.5">Thời gian</th>
@@ -210,47 +227,48 @@ export default function HistoryPage() {
                   <th className="px-5 py-3.5 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-slate-200/80">
                 {filtered.map((s) => (
-                  <tr key={s.id} className="transition hover:bg-slate-800/30">
+                  <tr key={s.id} className="transition hover:bg-slate-50">
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-white">{s.topic}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="font-semibold text-slate-900">{s.topic}</p>
+                      <p className="text-xs text-slate-500">
                         {s.mode === "interview" ? "Phỏng vấn" : "Thuyết trình"} ·{" "}
                         {s.difficulty ?? "medium"}
                       </p>
                     </td>
-                    <td className="px-5 py-4 text-xs text-slate-300">
+                    <td className="px-5 py-4 text-xs text-slate-600">
                       <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-slate-500" />
+                        <Clock className="h-3.5 w-3.5 text-slate-400" />
                         {new Date(s.started_at).toLocaleString("vi-VN")}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-bold text-indigo-300">
+                    <td className="px-5 py-4 font-bold text-indigo-600">
                       {s.overall_score !== null
                         ? `${Math.round(s.overall_score)}/100`
                         : "Đang xử lý"}
                     </td>
-                    <td className="px-5 py-4 text-emerald-300">
+                    <td className="px-5 py-4 font-medium text-emerald-600">
                       {Math.round(s.avg_eye_contact_rate)}%
                     </td>
-                    <td className="px-5 py-4 text-xs text-slate-300">
+                    <td className="px-5 py-4 text-xs text-slate-600">
                       {Math.round(s.avg_wpm)} WPM · {s.total_filler_words} từ đệm
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <Link
                           href={`/dashboard/${s.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg bg-indigo-600/20 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-600/35"
+                          className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
                         >
                           Xem báo cáo
                           <ArrowUpRight className="h-3.5 w-3.5" />
                         </Link>
                         <button
                           type="button"
-                          onClick={() => handleDelete(s.id)}
+                          disabled={deletingId === s.id}
+                          onClick={() => handleDelete(s)}
                           title="Xóa phiên"
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-500/15 hover:text-rose-400"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

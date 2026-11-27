@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.database import AsyncSessionLocal
+from app.core.security import decode_access_token
 from app.models.models import InterviewSession, SessionMetrics, TranscriptItem
 from app.services.cv_engine import cv_engine
 from app.services.llm_agent import llm_agent
@@ -24,6 +25,9 @@ from app.services.tts_engine import tts_engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+MAX_FRAME_B64_CHARS = 1_500_000   # ~1.1 MB decoded JPEG
+MAX_AUDIO_B64_CHARS = 10_000_000  # ~7.5 MB decoded audio chunk
 
 
 async def _safe_send(websocket: WebSocket, payload: dict) -> bool:
@@ -37,6 +41,16 @@ async def _safe_send(websocket: WebSocket, payload: dict) -> bool:
 @router.websocket("/ws/interview/{session_id}")
 async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
     await websocket.accept()
+
+    token = websocket.query_params.get("token")
+    token_user_id = decode_access_token(token) if token else None
+    if token and token_user_id is None:
+        await _safe_send(
+            websocket,
+            {"type": "error", "message": "Phiên đăng nhập đã hết hạn hoặc không hợp lệ."},
+        )
+        await websocket.close(code=4001)
+        return
 
     # Load session & existing history
     async with AsyncSessionLocal() as db:
@@ -53,18 +67,41 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
             await websocket.close(code=4004)
             return
 
+        if session.user_id is not None and session.user_id != token_user_id:
+            await _safe_send(
+                websocket,
+                {"type": "error", "message": "Bạn không có quyền truy cập phiên phỏng vấn này."},
+            )
+            await websocket.close(code=4003)
+            return
+
         topic = session.topic
         mode = session.mode
         language = session.language
         difficulty = session.difficulty
         custom_context = session.custom_context
+        existing_transcripts = [
+            {
+                "id": t.id,
+                "speaker": t.speaker,
+                "text": t.text,
+                "timestamp_sec": t.timestamp_sec,
+                "duration_sec": t.duration_sec,
+                "word_count": t.word_count,
+                "wpm": t.wpm,
+                "pace_status": t.pace_status,
+                "filler_words": t.filler_words or [],
+                "filler_count": t.filler_count,
+            }
+            for t in session.transcripts
+        ]
         history: List[Dict[str, str]] = [
             {"speaker": t.speaker, "text": t.text} for t in session.transcripts
         ]
 
     session_start = time.monotonic()
 
-    # Send opening question if conversation hasn't started yet
+    # Send opening question if conversation hasn't started yet; otherwise sync existing history on reconnect
     if not history:
         opening_text = llm_agent.get_opening_question(
             topic, mode, language, difficulty=difficulty, custom_context=custom_context
@@ -100,6 +137,20 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
             },
         )
         await _safe_send(websocket, {"type": "ai_status", "status": "listening"})
+    else:
+        last_ai = next(
+            (t["text"] for t in reversed(existing_transcripts) if t["speaker"] == "ai"),
+            "",
+        )
+        await _safe_send(
+            websocket,
+            {
+                "type": "session_sync",
+                "transcripts": existing_transcripts,
+                "current_question": last_ai,
+            },
+        )
+        await _safe_send(websocket, {"type": "ai_status", "status": "listening"})
 
     last_db_metric_save = 0.0
 
@@ -122,6 +173,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
 
             if msg_type == "video_frame":
                 frame_b64 = message.get("frame", "")
+                if not isinstance(frame_b64, str) or len(frame_b64) > MAX_FRAME_B64_CHARS:
+                    continue
                 # Run CPU-bound OpenCV/MediaPipe analysis off the event loop
                 metrics = await asyncio.to_thread(
                     cv_engine.analyze_frame, frame_b64, elapsed
@@ -161,6 +214,15 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
 
                 if msg_type == "audio_chunk" and not transcript_text:
                     audio_b64 = message.get("audio", "")
+                    if isinstance(audio_b64, str) and len(audio_b64) > MAX_AUDIO_B64_CHARS:
+                        await _safe_send(
+                            websocket,
+                            {
+                                "type": "info",
+                                "message": "Đoạn ghi âm quá lớn. Hãy thử trả lời ngắn gọn hơn mỗi lượt.",
+                            },
+                        )
+                        continue
                     mime_type = message.get("mime_type", "audio/webm")
                     transcript_text = await stt_engine.transcribe_audio(
                         audio_b64, language=language, mime_type=mime_type

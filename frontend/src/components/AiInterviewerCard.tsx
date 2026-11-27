@@ -15,27 +15,27 @@ const STATUS_META: Record<
 > = {
   idle: {
     label: "Sẵn sàng bắt đầu",
-    badgeClass: "bg-slate-800 text-slate-300",
-    ringClass: "border-slate-700",
+    badgeClass: "border border-slate-200 bg-slate-100 text-slate-600",
+    ringClass: "border-slate-200",
   },
   listening: {
     label: "AI Đang lắng nghe",
-    badgeClass: "bg-emerald-500/20 text-emerald-300",
-    ringClass: "border-emerald-500/60 shadow-[0_0_30px_rgba(16,185,129,0.2)]",
+    badgeClass: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+    ringClass: "border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.2)]",
   },
   thinking: {
     label: "AI Đang suy nghĩ...",
-    badgeClass: "bg-amber-500/20 text-amber-300",
-    ringClass: "border-amber-500/60 shadow-[0_0_30px_rgba(245,158,11,0.2)]",
+    badgeClass: "border border-amber-200 bg-amber-50 text-amber-700",
+    ringClass: "border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.2)]",
   },
   speaking: {
     label: "AI Đang nói",
-    badgeClass: "bg-indigo-500/25 text-indigo-200",
-    ringClass: "border-indigo-400 shadow-[0_0_35px_rgba(99,102,241,0.35)]",
+    badgeClass: "border border-indigo-200 bg-indigo-50 text-indigo-700",
+    ringClass: "border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.25)]",
   },
   evaluating: {
     label: "Đang tổng hợp báo cáo AI...",
-    badgeClass: "bg-violet-500/25 text-violet-200",
+    badgeClass: "border border-violet-200 bg-violet-50 text-violet-700",
     ringClass: "border-violet-400",
   },
 };
@@ -48,14 +48,14 @@ export function AiInterviewerCard({
   const meta = STATUS_META[status];
 
   return (
-    <div className="flex aspect-video w-full flex-col justify-between rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/60 p-6 shadow-2xl">
+    <div className="flex aspect-video w-full flex-col justify-between rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/40 to-violet-50/60 p-6 shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
             AI Interviewer
           </p>
-          <p className="text-sm text-slate-400">Chủ đề: {topic}</p>
+          <p className="text-sm text-slate-600">Chủ đề: {topic}</p>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${meta.badgeClass}`}
@@ -74,11 +74,11 @@ export function AiInterviewerCard({
       {/* Center Avatar & Animated Waveform */}
       <div className="flex flex-col items-center justify-center gap-4 py-2">
         <div
-          className={`relative flex h-24 w-24 items-center justify-center rounded-full border-2 bg-slate-950/90 transition-all duration-300 ${meta.ringClass}`}
+          className={`relative flex h-24 w-24 items-center justify-center rounded-full border-2 bg-white shadow-sm transition-all duration-300 ${meta.ringClass}`}
         >
-          <Bot className="h-11 w-11 text-indigo-400" />
+          <Bot className="h-11 w-11 text-indigo-600" />
           {status === "speaking" && (
-            <span className="absolute inset-0 animate-ping rounded-full border border-indigo-400/40" />
+            <span className="absolute inset-0 animate-ping rounded-full border border-indigo-400/50" />
           )}
         </div>
 
@@ -89,10 +89,10 @@ export function AiInterviewerCard({
               key={i}
               className={`w-1.5 rounded-full transition-all duration-200 ${
                 status === "speaking"
-                  ? "animate-pulse bg-indigo-400"
+                  ? "animate-pulse bg-indigo-500"
                   : status === "listening"
-                  ? "bg-emerald-500/60"
-                  : "bg-slate-700"
+                  ? "bg-emerald-500"
+                  : "bg-slate-300"
               }`}
               style={{
                 height:
@@ -109,8 +109,8 @@ export function AiInterviewerCard({
       </div>
 
       {/* Current AI Question Bubble */}
-      <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-3.5">
-        <p className="line-clamp-3 text-sm leading-relaxed text-slate-200">
+      <div className="rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-sm">
+        <p className="line-clamp-3 text-sm leading-relaxed text-slate-700">
           {currentQuestion ||
             "Nhấn 'Bắt đầu phiên' để AI Interviewer đặt câu hỏi mở đầu cho bạn."}
         </p>

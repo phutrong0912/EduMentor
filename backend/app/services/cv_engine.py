@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import logging
 import math
+import threading
 from typing import Optional, Tuple
 
 import cv2
@@ -58,19 +59,9 @@ class ComputerVisionEngine:
     """Stateless-per-frame MediaPipe + OpenCV analyzer for real-time video frames."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._face_mesh = None
-        if _HAS_MEDIAPIPE:
-            try:
-                self._face_mesh = mp.solutions.face_mesh.FaceMesh(
-                    static_image_mode=False,
-                    max_num_faces=1,
-                    refine_landmarks=True,  # Enables iris landmarks 468-477
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                )
-            except Exception as exc:
-                logger.warning("Failed to initialize MediaPipe FaceMesh: %s", exc)
-                self._face_mesh = None
+        self._init_face_mesh()
 
         self._haar_cascade = None
         if self._face_mesh is None:
@@ -79,6 +70,20 @@ class ComputerVisionEngine:
                 self._haar_cascade = cv2.CascadeClassifier(cascade_path)
             except Exception:
                 self._haar_cascade = None
+
+    def _init_face_mesh(self) -> None:
+        if _HAS_MEDIAPIPE and self._face_mesh is None:
+            try:
+                self._face_mesh = mp.solutions.face_mesh.FaceMesh(
+                    static_image_mode=True,  # Stateless per frame for safe multi-user concurrency
+                    max_num_faces=1,
+                    refine_landmarks=True,  # Enables iris landmarks 468-477
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+            except Exception as exc:
+                logger.warning("Failed to initialize MediaPipe FaceMesh: %s", exc)
+                self._face_mesh = None
 
     @staticmethod
     def decode_frame(frame_data: str | bytes) -> Optional[np.ndarray]:
@@ -123,6 +128,10 @@ class ComputerVisionEngine:
                 alert="Camera quá tối hoặc đang bị che. Vui lòng kiểm tra ánh sáng.",
             )
 
+        if _HAS_MEDIAPIPE and self._face_mesh is None:
+            with self._lock:
+                self._init_face_mesh()
+
         if self._face_mesh is not None:
             return self._analyze_with_mediapipe(img, timestamp_sec)
         return self._analyze_with_opencv_fallback(img, timestamp_sec)
@@ -132,7 +141,8 @@ class ComputerVisionEngine:
     ) -> CVFrameMetrics:
         h, w, _ = img.shape
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = self._face_mesh.process(rgb)
+        with self._lock:
+            results = self._face_mesh.process(rgb)
 
         if not results.multi_face_landmarks:
             return CVFrameMetrics(
@@ -376,8 +386,13 @@ class ComputerVisionEngine:
         )
 
     def close(self) -> None:
-        if self._face_mesh is not None:
-            self._face_mesh.close()
+        with self._lock:
+            if self._face_mesh is not None:
+                try:
+                    self._face_mesh.close()
+                except Exception:
+                    pass
+                self._face_mesh = None
 
 
 # Singleton instance reused across WebSocket connections

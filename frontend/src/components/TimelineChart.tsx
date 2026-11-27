@@ -19,7 +19,7 @@ interface TimelineChartProps {
 export function TimelineChart({ timeline }: TimelineChartProps) {
   if (!timeline.length) {
     return (
-      <div className="flex h-72 items-center justify-center text-sm text-slate-400">
+      <div className="flex h-72 items-center justify-center text-sm text-slate-500">
         Chưa có dữ liệu biến thiên theo thời gian cho phiên này.
       </div>
     );
@@ -32,32 +32,33 @@ export function TimelineChart({ timeline }: TimelineChartProps) {
           data={timeline}
           margin={{ top: 10, right: 16, left: 0, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis
             dataKey="label"
-            stroke="#94a3b8"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            stroke="#64748b"
+            tick={{ fill: "#64748b", fontSize: 12 }}
           />
           <YAxis
             yAxisId="left"
             domain={[0, 100]}
-            stroke="#34d399"
-            tick={{ fill: "#34d399", fontSize: 11 }}
+            stroke="#059669"
+            tick={{ fill: "#059669", fontSize: 11 }}
             unit="%"
           />
           <YAxis
             yAxisId="right"
             orientation="right"
             domain={[0, 220]}
-            stroke="#f59e0b"
-            tick={{ fill: "#f59e0b", fontSize: 11 }}
+            stroke="#d97706"
+            tick={{ fill: "#d97706", fontSize: 11 }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              borderColor: "#334155",
+              backgroundColor: "#ffffff",
+              borderColor: "#e2e8f0",
               borderRadius: "0.75rem",
-              color: "#f8fafc",
+              color: "#0f172a",
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.08)",
             }}
           />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
@@ -66,18 +67,18 @@ export function TimelineChart({ timeline }: TimelineChartProps) {
             type="monotone"
             dataKey="eye_contact_rate"
             name="Eye Contact (%)"
-            stroke="#34d399"
+            stroke="#059669"
             strokeWidth={2.5}
-            dot={{ r: 4, fill: "#34d399" }}
+            dot={{ r: 4, fill: "#059669" }}
           />
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="wpm"
             name="Tốc độ nói (WPM)"
-            stroke="#f59e0b"
+            stroke="#d97706"
             strokeWidth={2.5}
-            dot={{ r: 4, fill: "#f59e0b" }}
+            dot={{ r: 4, fill: "#d97706" }}
           />
         </LineChart>
       </ResponsiveContainer>

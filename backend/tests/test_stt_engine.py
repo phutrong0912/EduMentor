@@ -31,7 +31,7 @@ def test_compute_wpm_classification():
 
 def test_analyze_speech_text_and_breakdown():
     res = analyze_speech_text("À thì em thiết kế hệ thống microservices cho dự án tốt nghiệp.", 10.0)
-    assert res.word_count == 12
+    assert res.word_count == 13
     assert res.filler_count >= 2
     breakdown = summarize_filler_breakdown([res.filler_words])
     assert sum(breakdown.values()) == res.filler_count

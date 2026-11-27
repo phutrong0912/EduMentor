@@ -123,8 +123,8 @@ export default function DashboardReportPage() {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-4">
         <div className="text-center">
-          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-indigo-400" />
-          <p className="mt-3 text-sm text-slate-400">
+          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
+          <p className="mt-3 text-sm text-slate-500">
             Đang tải báo cáo phân tích đa phương thức...
           </p>
         </div>
@@ -135,10 +135,10 @@ export default function DashboardReportPage() {
   if (error || !report) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <p className="text-rose-400">{error || "Không tìm thấy báo cáo."}</p>
+        <p className="text-rose-600">{error || "Không tìm thấy báo cáo."}</p>
         <Link
           href="/"
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
         >
           <ArrowLeft className="h-4 w-4" />
           Quay lại Trang chủ
@@ -165,15 +165,15 @@ export default function DashboardReportPage() {
         <div>
           <Link
             href="/"
-            className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white"
+            className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-indigo-600"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Quay lại lịch sử phiên
           </Link>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
             Báo cáo phân tích — {session.topic}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Chế độ: {session.mode === "interview" ? "Phỏng vấn" : "Thuyết trình"} ·
             Ngôn ngữ: {session.language === "vi" ? "Tiếng Việt" : "English"} ·
             Thời lượng: {Math.max(1, Math.round(session.duration_seconds / 60))} phút
@@ -184,7 +184,7 @@ export default function DashboardReportPage() {
           <button
             type="button"
             onClick={handleExportMarkdown}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             <Download className="h-4 w-4" />
             Xuất .MD
@@ -192,7 +192,7 @@ export default function DashboardReportPage() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             <Printer className="h-4 w-4" />
             In / PDF
@@ -201,14 +201,14 @@ export default function DashboardReportPage() {
             type="button"
             disabled={reEvaluating}
             onClick={handleReEvaluate}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${reEvaluating ? "animate-spin" : ""}`} />
             Chấm lại
           </button>
           <Link
             href="/interview"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
           >
             Luyện phiên mới
           </Link>
@@ -217,49 +217,55 @@ export default function DashboardReportPage() {
 
       {/* KPI Cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/60 to-slate-900 p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-indigo-300">
+        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-indigo-700">
             <span>TỔNG ĐIỂM AI</span>
             <Award className="h-4 w-4" />
           </div>
-          <p className="mt-2 text-4xl font-extrabold text-white">
+          <p className="mt-2 text-4xl font-extrabold text-indigo-700">
             {overallScore}
             <span className="text-lg font-normal text-slate-400">/100</span>
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-emerald-300">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-emerald-600">
             <span>EYE CONTACT TB</span>
             <Eye className="h-4 w-4" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
-            {Math.round(session.avg_eye_contact_rate)}%
+          <p className="mt-2 text-3xl font-bold text-slate-900">
+            {session.avg_eye_contact_rate > 0 || scores.eye_contact > 0
+              ? `${Math.round(session.avg_eye_contact_rate)}%`
+              : "Chưa đo"}
           </p>
-          <p className="mt-1 text-xs text-slate-400">Ngưỡng tốt: &ge; 70%</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {session.avg_eye_contact_rate > 0 || scores.eye_contact > 0
+              ? "Ngưỡng tốt: ≥ 70%"
+              : "Camera chưa bật trong phiên"}
+          </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-amber-300">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-amber-600">
             <span>TỐC ĐỘ NÓI (WPM)</span>
             <Gauge className="h-4 w-4" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="mt-2 text-3xl font-bold text-slate-900">
             {Math.round(session.avg_wpm)}{" "}
-            <span className="text-sm font-normal text-slate-400">WPM</span>
+            <span className="text-sm font-normal text-slate-500">WPM</span>
           </p>
-          <p className="mt-1 text-xs text-slate-400">Ngưỡng chuẩn: 120 – 150 WPM</p>
+          <p className="mt-1 text-xs text-slate-500">Ngưỡng chuẩn: 120 – 150 WPM</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <div className="flex items-center justify-between text-xs font-medium text-rose-300">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-rose-600">
             <span>TỔNG TỪ ĐỆM</span>
             <MessageSquareWarning className="h-4 w-4" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="mt-2 text-3xl font-bold text-slate-900">
             {session.total_filler_words}
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             {fillerEntries.length > 0
               ? `Hay dùng: "${fillerEntries[0][0]}" (${fillerEntries[0][1]}x)`
               : "Rất tốt! Không phát hiện từ đệm"}
@@ -269,27 +275,27 @@ export default function DashboardReportPage() {
 
       {/* Charts Row: Radar + Timeline */}
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-          <h2 className="mb-1 text-lg font-semibold text-white">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">
             Biểu đồ Radar 4 chiều
           </h2>
-          <p className="mb-4 text-xs text-slate-400">
+          <p className="mb-4 text-xs text-slate-500">
             Nội dung · Ngữ điệu & Tốc độ · Tác phong & Biểu cảm · Tương tác mắt
           </p>
           <RadarScoreChart scores={scores} />
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Biến thiên theo thời gian (Timeline)
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Eye Contact (%) và Tốc độ nói (WPM) qua từng phút
               </p>
             </div>
-            <Clock className="h-5 w-5 text-slate-500" />
+            <Clock className="h-5 w-5 text-slate-400" />
           </div>
           <TimelineChart timeline={timeline} />
         </div>
@@ -298,29 +304,29 @@ export default function DashboardReportPage() {
       {/* Actionable AI Feedback */}
       {evaluation && (
         <div className="mb-8 space-y-6">
-          <div className="rounded-2xl border border-indigo-500/30 bg-slate-900/80 p-6">
-            <div className="mb-2 flex items-center gap-2 text-indigo-300">
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-6 shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-indigo-600">
               <Sparkles className="h-5 w-5" />
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Nhận xét tổng quan từ AI Mentor
               </h2>
             </div>
-            <p className="text-sm leading-relaxed text-slate-200">
+            <p className="text-sm leading-relaxed text-slate-700">
               {evaluation.summary}
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Strengths */}
-            <div className="rounded-2xl border border-emerald-500/25 bg-slate-900/70 p-5">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-300">
+            <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
                 Điểm mạnh
               </h3>
-              <ul className="space-y-2.5 text-sm text-slate-300">
+              <ul className="space-y-2.5 text-sm text-slate-700">
                 {evaluation.strengths.map((s, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                     <span>{s}</span>
                   </li>
                 ))}
@@ -328,15 +334,15 @@ export default function DashboardReportPage() {
             </div>
 
             {/* Weaknesses */}
-            <div className="rounded-2xl border border-rose-500/25 bg-slate-900/70 p-5">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-rose-300">
+            <div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-rose-700">
                 <MessageSquareWarning className="h-4 w-4" />
                 Điểm cần khắc phục
               </h3>
-              <ul className="space-y-2.5 text-sm text-slate-300">
+              <ul className="space-y-2.5 text-sm text-slate-700">
                 {evaluation.weaknesses.map((w, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
                     <span>{w}</span>
                   </li>
                 ))}
@@ -344,15 +350,15 @@ export default function DashboardReportPage() {
             </div>
 
             {/* Actionable Feedback */}
-            <div className="rounded-2xl border border-indigo-500/25 bg-slate-900/70 p-5">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-300">
+            <div className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-700">
                 <TrendingUp className="h-4 w-4" />
                 Lộ trình cải thiện
               </h3>
-              <ul className="space-y-2.5 text-sm text-slate-300">
+              <ul className="space-y-2.5 text-sm text-slate-700">
                 {evaluation.actionable_feedback.map((a, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="font-mono text-xs text-indigo-400">
+                    <span className="font-mono text-xs font-semibold text-indigo-600">
                       0{i + 1}.
                     </span>
                     <span>{a}</span>
@@ -364,32 +370,32 @@ export default function DashboardReportPage() {
 
           {/* Sample STAR Answer Improvements */}
           {evaluation.sample_improvements?.length > 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-              <h3 className="mb-4 text-base font-semibold text-white">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="mb-4 text-base font-semibold text-slate-900">
                 Gợi ý nâng cấp câu trả lời (STAR Method)
               </h3>
               <div className="space-y-4">
                 {evaluation.sample_improvements.map((imp, idx) => (
                   <div
                     key={idx}
-                    className="grid grid-cols-1 gap-4 rounded-xl border border-slate-800 bg-slate-950/70 p-4 md:grid-cols-2"
+                    className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2"
                   >
                     <div>
-                      <p className="text-xs font-semibold uppercase text-slate-400">
+                      <p className="text-xs font-semibold uppercase text-slate-500">
                         Câu trả lời gốc
                       </p>
-                      <p className="mt-1.5 text-sm italic text-slate-300">
+                      <p className="mt-1.5 text-sm italic text-slate-600">
                         &ldquo;{imp.original_excerpt}&rdquo;
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase text-emerald-400">
+                      <p className="text-xs font-semibold uppercase text-emerald-700">
                         Gợi ý hay hơn
                       </p>
-                      <p className="mt-1.5 text-sm text-emerald-100">
+                      <p className="mt-1.5 text-sm text-emerald-900">
                         {imp.improved_suggestion}
                       </p>
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-2 text-xs text-slate-500">
                         Lý do: {imp.reason}
                       </p>
                     </div>
@@ -402,13 +408,13 @@ export default function DashboardReportPage() {
       )}
 
       {/* Transcript Review */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-slate-900">
               Chi tiết Transcript & Highlight lỗi
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Xem lại từng câu trả lời kèm chỉ số WPM và vị trí các từ đệm
             </p>
           </div>
@@ -417,7 +423,7 @@ export default function DashboardReportPage() {
               {fillerEntries.slice(0, 6).map(([word, count]) => (
                 <span
                   key={word}
-                  className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs text-rose-300"
+                  className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700"
                 >
                   &ldquo;{word}&rdquo; × {count}
                 </span>
