@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthGuard } from "@/components/AuthGuard";
 import { Navbar } from "@/components/Navbar";
 import "./globals.css";
 
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="vi">
       <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
         <Navbar />
-        <main>{children}</main>
+        <main>
+          <AuthGuard>{children}</AuthGuard>
+        </main>
       </body>
     </html>
   );

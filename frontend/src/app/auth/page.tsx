@@ -28,7 +28,7 @@ export default function AuthPage() {
       localStorage.setItem("edumentor_token", resp.access_token);
       localStorage.setItem("edumentor_user", JSON.stringify(resp.user));
       window.dispatchEvent(new Event("edumentor-auth-change"));
-      router.push("/interview");
+      router.replace("/");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Đăng nhập/Đăng ký thất bại."
@@ -49,14 +49,17 @@ export default function AuthPage() {
             {tab === "login" ? "Đăng nhập EduMentor AI" : "Tạo tài khoản mới"}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Lưu trữ lịch sử phỏng vấn và theo dõi tiến bộ của riêng bạn
+            Bạn cần có tài khoản để vào phòng luyện tập và lưu trữ báo cáo phân tích
           </p>
         </div>
 
         <div className="mb-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-sm">
           <button
             type="button"
-            onClick={() => setTab("login")}
+            onClick={() => {
+              setTab("login");
+              setError(null);
+            }}
             className={`rounded-lg py-2 font-medium transition ${
               tab === "login"
                 ? "bg-white text-indigo-700 shadow-sm"
@@ -67,7 +70,10 @@ export default function AuthPage() {
           </button>
           <button
             type="button"
-            onClick={() => setTab("register")}
+            onClick={() => {
+              setTab("register");
+              setError(null);
+            }}
             className={`rounded-lg py-2 font-medium transition ${
               tab === "register"
                 ? "bg-white text-indigo-700 shadow-sm"

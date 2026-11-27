@@ -4,22 +4,52 @@ from app.main import app
 
 
 def test_health_and_full_session_lifecycle():
+    import uuid
+
     with TestClient(app) as client:
-        # 1. Health check
+        # 1. Health check (public)
         res = client.get("/health")
         assert res.status_code == 200
         assert res.json()["status"] == "ok"
 
-        # 2. Create session
+        # Unauthenticated session access must be rejected with 401
+        assert client.get("/api/sessions").status_code == 401
+        assert (
+            client.post(
+                "/api/sessions",
+                json={"topic": "IT Backend", "mode": "interview", "language": "vi"},
+            ).status_code
+            == 401
+        )
+
+        # Register & authenticate user
+        email = f"lifecycle_{uuid.uuid4().hex[:8]}@example.com"
+        reg = client.post(
+            "/api/auth/register",
+            json={"email": email, "full_name": "Test User", "password": "password123"},
+        )
+        assert reg.status_code == 201
+        token = reg.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 2. Create session (authenticated)
         create_res = client.post(
             "/api/sessions",
             json={"topic": "IT Backend", "mode": "interview", "language": "vi"},
+            headers=headers,
         )
         assert create_res.status_code == 201
         session_id = create_res.json()["id"]
 
+        # Unauthenticated WebSocket connection must be rejected
+        with client.websocket_connect(f"/ws/interview/{session_id}") as ws_anon:
+            err = ws_anon.receive_json()
+            assert err["type"] == "error"
+
         # 3. Connect WebSocket & simulate a turn
-        with client.websocket_connect(f"/ws/interview/{session_id}") as ws:
+        with client.websocket_connect(
+            f"/ws/interview/{session_id}?token={token}"
+        ) as ws:
             # Opening status + question
             msg1 = ws.receive_json()
             assert msg1["type"] == "ai_status"
@@ -60,7 +90,7 @@ def test_health_and_full_session_lifecycle():
             assert completed["session_id"] == session_id
 
         # 4. Fetch Analytics Dashboard Report
-        report_res = client.get(f"/api/reports/{session_id}")
+        report_res = client.get(f"/api/reports/{session_id}", headers=headers)
         assert report_res.status_code == 200
         report = report_res.json()
         assert report["evaluation"] is not None
@@ -119,13 +149,12 @@ def test_auth_ownership_and_ws_reconnect():
         assert sess_res.status_code == 201
         session_id = sess_res.json()["id"]
 
-        # List isolation: User A sees it; User B and guest do NOT
+        # List isolation: User A sees it; User B does NOT; guest gets 401
         list_a = [s["id"] for s in client.get("/api/sessions", headers=headers_a).json()]
         list_b = [s["id"] for s in client.get("/api/sessions", headers=headers_b).json()]
-        list_guest = [s["id"] for s in client.get("/api/sessions").json()]
+        assert client.get("/api/sessions").status_code == 401
         assert session_id in list_a
         assert session_id not in list_b
-        assert session_id not in list_guest
 
         # Direct access isolation: User B gets 403, guest gets 401
         assert client.get(f"/api/sessions/{session_id}", headers=headers_b).status_code == 403

@@ -44,10 +44,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str) -> None:
 
     token = websocket.query_params.get("token")
     token_user_id = decode_access_token(token) if token else None
-    if token and token_user_id is None:
+    if not token or token_user_id is None:
         await _safe_send(
             websocket,
-            {"type": "error", "message": "Phiên đăng nhập đã hết hạn hoặc không hợp lệ."},
+            {"type": "error", "message": "Vui lòng đăng nhập để tham gia phiên luyện tập."},
         )
         await websocket.close(code=4001)
         return

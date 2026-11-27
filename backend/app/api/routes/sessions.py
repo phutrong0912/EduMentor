@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import ensure_session_access, get_optional_current_user
+from app.core.security import ensure_session_access, get_current_user
 from app.models.models import InterviewSession, SessionMetrics, TranscriptItem, User
 from app.schemas.schemas import SessionCreate, SessionSummary
 from app.services.report_service import finalize_session_report
@@ -20,11 +20,11 @@ router = APIRouter(prefix="/api/sessions", tags=["Sessions"])
 async def create_session(
     payload: SessionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> SessionSummary:
     # Always derive ownership from verified JWT, never trust client-supplied user_id
     session = InterviewSession(
-        user_id=current_user.id if current_user else None,
+        user_id=current_user.id,
         topic=payload.topic.strip(),
         mode=payload.mode,
         language=payload.language,
@@ -41,7 +41,7 @@ async def create_session(
 @router.post("/demo", response_model=SessionSummary, status_code=status.HTTP_201_CREATED)
 async def create_demo_session(
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> SessionSummary:
     """Seed a sample completed interview session (development/DEBUG mode only)."""
     if not settings.DEBUG:
@@ -51,7 +51,7 @@ async def create_demo_session(
         )
     now = datetime.now(timezone.utc)
     session = InterviewSession(
-        user_id=current_user.id if current_user else None,
+        user_id=current_user.id,
         topic="IT Backend",
         mode="interview",
         language="vi",
@@ -158,17 +158,13 @@ async def create_demo_session(
 async def list_sessions(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> List[SessionSummary]:
-    query = select(InterviewSession)
-    if current_user is not None:
-        query = query.where(InterviewSession.user_id == current_user.id)
-    else:
-        # Guests only see anonymous sessions; never leak registered users' sessions
-        query = query.where(InterviewSession.user_id.is_(None))
-
     result = await db.execute(
-        query.order_by(desc(InterviewSession.started_at)).limit(min(limit, 100))
+        select(InterviewSession)
+        .where(InterviewSession.user_id == current_user.id)
+        .order_by(desc(InterviewSession.started_at))
+        .limit(min(limit, 100))
     )
     sessions = result.scalars().all()
     return [SessionSummary.model_validate(s) for s in sessions]
@@ -178,7 +174,7 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> SessionSummary:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
@@ -194,7 +190,7 @@ async def get_session(
 async def end_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> SessionSummary:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
@@ -221,7 +217,7 @@ async def end_session(
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)

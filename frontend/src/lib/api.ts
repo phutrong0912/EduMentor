@@ -73,6 +73,18 @@ async function extractErrorMessage(res: Response): Promise<string> {
       if (typeof parsed.detail === "string" && parsed.detail.trim()) {
         return parsed.detail;
       }
+      if (Array.isArray(parsed.detail) && parsed.detail.length > 0) {
+        const msgs = parsed.detail
+          .map((item: { msg?: string; loc?: unknown[] }) => {
+            const field = Array.isArray(item.loc)
+              ? String(item.loc[item.loc.length - 1] ?? "")
+              : "";
+            const msg = item.msg || "";
+            return field ? `${field}: ${msg}` : msg;
+          })
+          .filter(Boolean);
+        if (msgs.length > 0) return msgs.join("; ");
+      }
     } catch {
       // fall through to plain text
     }
@@ -83,10 +95,17 @@ async function extractErrorMessage(res: Response): Promise<string> {
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const hadToken = Boolean(getAuthToken());
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: buildAuthHeaders(init?.headers),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: buildAuthHeaders(init?.headers),
+    });
+  } catch {
+    throw new Error(
+      `Không thể kết nối máy chủ API (${API_BASE_URL}). Vui lòng kiểm tra Backend đã được khởi động.`
+    );
+  }
 
   if (!res.ok) {
     if (res.status === 401 && hadToken && !path.startsWith("/api/auth/login")) {
